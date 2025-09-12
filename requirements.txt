@@ -1,0 +1,8 @@
+requests
+PyPDF2
+google-generativeai
+supabase
+python-dotenv
+langchain
+Flask
+Flask-Cors
