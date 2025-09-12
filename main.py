@@ -428,6 +428,13 @@ async def ask_chatbot(supabase, user_query: str, chunk_table_name: str):
 app = Flask(__name__)
 CORS(app)
 
+# Use global variables so they are available to the entire application.
+SUPABASE_CHUNK_TABLE = "document_chunks"
+SUPABASE_DOCUMENT_TABLE = "chatbot_documents"
+
+# Initialize the Supabase client here, outside of the main block.
+supabase_client = get_or_create_supabase_client()
+
 # Helper function to get or create a new event loop
 def _get_or_create_event_loop():
     try:
@@ -468,12 +475,6 @@ if __name__ == '__main__':
     except KeyError:
         print("Error: 'GEMINI_API_KEY' environment variable not set.")
         sys.exit(1)
-    
-    SUPABASE_CHUNK_TABLE = "document_chunks"
-    SUPABASE_DOCUMENT_TABLE = "chatbot_documents"
-
-    # Initialize the async Supabase client
-    supabase_client = get_or_create_supabase_client()
     
     if supabase_client:
         # Create a new event loop for the async listener
