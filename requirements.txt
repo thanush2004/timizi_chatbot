@@ -5,4 +5,5 @@ supabase
 python-dotenv
 langchain
 Flask
+gunicorn
 Flask-Cors
