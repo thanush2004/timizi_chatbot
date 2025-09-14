@@ -105,7 +105,7 @@ class SkinCarePrompter(Prompter):
                 return products
             else:
                 return {"type": "text", "response": "I didn't understand that. Please specify the level: mild, moderate, severe, or healing."}
-        
+    
         return {"type": "text", "response": "Sorry, something went wrong. Let's start over. What are you looking for?"}
 
     async def get_product_tags(self) -> list:
@@ -163,7 +163,7 @@ class HairCarePrompter(Prompter):
                 return products
             else:
                 return {"type": "text", "response": "I didn't understand that. Please specify the level: mild, moderate, severe, or healing."}
-        
+    
         return {"type": "text", "response": "Sorry, something went wrong. Let's start over. What are you looking for?"}
 
     async def get_product_tags(self) -> list:
@@ -281,7 +281,7 @@ async def ingest_document(supabase, document_record: dict, chunk_table_name: str
         if data_to_upsert:
             await supabase.table(chunk_table_name).upsert(data_to_upsert).execute()
             print(f"Upserted {len(data_to_upsert)} chunks from {file_name} to the '{chunk_table_name}' table.")
-        
+    
     except requests.exceptions.RequestException as e:
         print(f"Error downloading file {file_name}: {e}")
     except Exception as e:
@@ -302,7 +302,7 @@ async def listen_for_new_documents(supabase, doc_table_name: str, chunk_table_na
             await ingest_document(supabase, record, chunk_table_name)
     except Exception as e:
         print(f"Initial ingestion failed: {e}")
-        
+    
     # Start the real-time stream listener
     try:
         async for event in supabase.from_(doc_table_name).stream():
@@ -391,34 +391,38 @@ async def ask_chatbot(supabase, user_query: str, chunk_table_name: str):
             'match_documents',
             {
                 'query_embedding': query_embedding,
-                'match_threshold': 0.5,
+                'match_threshold': 0.3, # <<-- Lowered the threshold here
                 'match_count': 1
             }
         ).execute()
 
+        retrieved_context = None
         if response.data and len(response.data) > 0:
             retrieved_context = response.data[0]['content']
+        
+        # New: If no context is found, use a different, more general prompt
+        if not retrieved_context:
+            prompt = f"""
+            The user is asking a question that is not covered in your knowledge base.
+            You are a helpful assistant. Acknowledge that you don't have the specific information, and politely offer to help with something else.
+            User Question: {user_query}
+            """
         else:
-            return {"type": "text", "response": "Sorry, I couldn't find any relevant information in the knowledge base."}
+            print(f"\nRetrieved Context:\n{textwrap.fill(retrieved_context, 70)}")
+            prompt = f"""
+            You are a helpful assistant. Use only the following context to answer the question. If the answer is not in the context, say that you don't have the information.
 
+            Context:
+            {retrieved_context}
+
+            User Question:
+            {user_query}
+            """
     except Exception as e:
         print(f"An error occurred during Supabase RPC call: {e}")
         return {"type": "text", "response": "I'm having trouble accessing my knowledge base. Please try again later."}
     
-    print(f"\nRetrieved Context:\n{textwrap.fill(retrieved_context, 70)}")
-
-    # 3. Construct the prompt with the retrieved context
-    prompt = f"""
-    You are a helpful assistant. Use only the following context to answer the question. If the answer is not in the context, say that you don't have the information.
-
-    Context:
-    {retrieved_context}
-
-    User Question:
-    {user_query}
-    """
-    
-    # 4. Call the Gemini API's generative model
+    # 3. Call the Gemini API's generative model
     generation_model = genai.GenerativeModel('gemini-1.5-pro-latest')
     response = generation_model.generate_content(prompt)
     
