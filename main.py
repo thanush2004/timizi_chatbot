@@ -70,12 +70,13 @@ class SkinCarePrompter(Prompter):
         """
         Processes a user response and returns the next question or a final response.
         """
+        user_response_lower = user_response.lower()
+
         if self.state == ConversationState.INITIAL:
             self.state = ConversationState.PROMPTING_SKIN_TYPE
             return {"type": "text", "response": "What is your skin type? (e.g., normal, combination, dry, sensitive, or oily)"}
 
         elif self.state == ConversationState.PROMPTING_SKIN_TYPE:
-            user_response_lower = user_response.lower()
             matching_key = next((key for key in self.product_keywords if key in user_response_lower), None)
             if matching_key:
                 self.answers['skin_type'] = self.product_keywords[matching_key]
@@ -85,7 +86,6 @@ class SkinCarePrompter(Prompter):
                 return {"type": "text", "response": "I didn't understand that. Please choose from: normal, combination, dry, sensitive, or oily."}
 
         elif self.state == ConversationState.PROMPTING_SKIN_PROBLEM:
-            user_response_lower = user_response.lower()
             matching_key = next((key for key in self.product_keywords if key in user_response_lower), None)
             if matching_key:
                 self.answers['skin_problem'] = self.product_keywords[matching_key]
@@ -95,7 +95,6 @@ class SkinCarePrompter(Prompter):
                 return {"type": "text", "response": "I didn't understand that. Please specify a problem like acne, pigmentation, or dark circles."}
 
         elif self.state == ConversationState.PROMPTING_SKIN_LEVEL:
-            user_response_lower = user_response.lower()
             matching_key = next((key for key in self.product_keywords if key in user_response_lower), None)
             if matching_key:
                 self.answers['problem_level'] = self.product_keywords[matching_key]
@@ -138,12 +137,12 @@ class HairCarePrompter(Prompter):
         """
         Processes a user response and returns the next question or a final response.
         """
+        user_response_lower = user_response.lower()
         if self.state == ConversationState.INITIAL:
             self.state = ConversationState.PROMPTING_HAIR_TYPE
             return {"type": "text", "response": "What is your main hair concern? (e.g., hair fall, dandruff, oily scalp, slow hair growth, dry/frizzy)"}
 
         elif self.state == ConversationState.PROMPTING_HAIR_TYPE:
-            user_response_lower = user_response.lower()
             matching_key = next((key for key in self.product_keywords if key in user_response_lower), None)
             if matching_key:
                 self.answers['hair_type'] = self.product_keywords[matching_key]
@@ -153,7 +152,6 @@ class HairCarePrompter(Prompter):
                 return {"type": "text", "response": "I didn't understand that. Please specify a hair concern like hair fall, dandruff, or dry/frizzy."}
 
         elif self.state == ConversationState.PROMPTING_HAIR_LEVEL:
-            user_response_lower = user_response.lower()
             matching_key = next((key for key in self.product_keywords if key in user_response_lower), None)
             if matching_key:
                 self.answers['problem_level'] = self.product_keywords[matching_key]
