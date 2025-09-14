@@ -7,3 +7,4 @@ langchain
 Flask
 gunicorn
 Flask-Cors
+Flask-Talisman 
