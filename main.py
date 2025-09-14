@@ -385,35 +385,36 @@ async def ask_chatbot(supabase, user_query: str, chunk_table_name: str):
     if not query_embedding:
         return {"type": "text", "response": "I'm sorry, I couldn't process your query."}
 
-    # 2. Query the Supabase database for the most relevant chunk using the `match_documents` RPC function
+    # 2. Query the Supabase database for the top 3 most relevant chunks
     try:
         response = await supabase.rpc(
             'match_documents',
             {
                 'query_embedding': query_embedding,
-                'match_threshold': 0.3, # <<-- Lowered the threshold here
-                'match_count': 1
+                'match_threshold': 0.3, # Keep the lower threshold for broader search
+                'match_count': 3 # <--- Change this to retrieve multiple chunks
             }
         ).execute()
 
-        retrieved_context = None
-        if response.data and len(response.data) > 0:
-            retrieved_context = response.data[0]['content']
+        retrieved_contexts = [record['content'] for record in response.data]
         
         # New: If no context is found, use a different, more general prompt
-        if not retrieved_context:
+        if not retrieved_contexts:
             prompt = f"""
             The user is asking a question that is not covered in your knowledge base.
             You are a helpful assistant. Acknowledge that you don't have the specific information, and politely offer to help with something else.
             User Question: {user_query}
             """
         else:
-            print(f"\nRetrieved Context:\n{textwrap.fill(retrieved_context, 70)}")
+            # Join the multiple contexts into a single block
+            context_text = "\n\n".join(retrieved_contexts)
+            print(f"\nRetrieved Contexts:\n{textwrap.fill(context_text, 70)}")
+            
             prompt = f"""
-            You are a helpful assistant. Use only the following context to answer the question. If the answer is not in the context, say that you don't have the information.
+            You are a helpful assistant. Use only the following contexts to answer the question. If the answer is not in the contexts, say that you don't have the information.
 
-            Context:
-            {retrieved_context}
+            Contexts:
+            {context_text}
 
             User Question:
             {user_query}
