@@ -16,7 +16,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from enum import Enum, auto
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_talisman import Talisman
 
 # --- Enums and State Classes ---
 class ConversationState(Enum):
@@ -40,7 +39,7 @@ class Prompter:
         self.state = ConversationState.INITIAL
         self.answers = {}
 
-    async def get_next_question(self, user_response: str) -> dict:
+    async def get_next_question(self, user_response: str) -> str:
         """
         Processes a user response and returns the next question or a final response.
         This method should be overridden by subclasses.
@@ -64,7 +63,7 @@ class SkinCarePrompter(Prompter):
             "oily": "oily", "dry": "dry", "normal": "normal", "sensitive": "sensitive", "combination": "combination",
             "acne": "acne-pimples", "pimples": "acne-pimples", "pigmentation": "pigmentation-dark-spots",
             "dark circle": "dark-circle", "tanning": "tanning-uneven-skinton", "glow": "glow", "clear": "clear",
-            "mild": "mild", "moderate": "moderate", "severe": "severe", "healing": "healing", "zits": "acne-pimples"
+            "mild": "mild", "moderate": "moderate", "severe": "severe", "healing": "healing"
         }
 
     async def get_next_question(self, user_response: str):
@@ -193,6 +192,7 @@ def get_or_create_supabase_client():
         if not supabase_url or not supabase_key:
             raise KeyError("SUPABASE_URL or SUPABASE_ANON_KEY not set.")
 
+        # This is the corrected way to get the async client for Supabase version 2.x
         return AsyncClient(supabase_url, supabase_key)
     except KeyError as e:
         print(f"Error: {e}")
@@ -346,8 +346,7 @@ async def search_by_subtype(supabase, subtype: str):
     Searches the products table based on a specific product subtype.
     """
     try:
-        # Use 'overlaps' to find products where the 'categories' array contains the subtype
-        response = await supabase.table("product").select("*").overlaps('categories', [subtype.lower()]).limit(10).execute()
+        response = await supabase.table("product").select("*").eq("categories", subtype.lower()).limit(10).execute()
         
         if response.data:
             return {"type": "product_list", "products": response.data}
@@ -421,29 +420,37 @@ async def ask_chatbot(supabase, user_query: str, chunk_table_name: str):
     
     # 4. Call the Gemini API's generative model
     generation_model = genai.GenerativeModel('gemini-1.5-pro-latest')
-    try:
-        response = generation_model.generate_content(prompt)
-        return {"type": "text", "response": response.text}
-    except Exception as e:
-        print(f"An error occurred during Gemini API call: {e}")
-        return {"type": "text", "response": "I'm currently unable to generate a response. Please try again later."}
+    response = generation_model.generate_content(prompt)
+    
+    return {"type": "text", "response": response.text}
 
 # --- Flask App Configuration and Routes ---
 app = Flask(__name__)
 CORS(app)
-Talisman(app) # Adds security headers
+
+# Helper function to get or create a new event loop
+def _get_or_create_event_loop():
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
 
 @app.route('/ask_chatbot', methods=['POST'])
-async def handle_chat_request():
+def handle_chat_request():
     data = request.json
     user_query = data.get('query')
     
     if not user_query:
         return jsonify({'type': 'text', 'response': 'No query provided.'}), 400
     
-    response_data = await ask_chatbot(supabase_client, user_query, SUPABASE_CHUNK_TABLE)
+    # Use the helper function to get a valid event loop
+    loop = _get_or_create_event_loop()
+    response_data = loop.run_until_complete(ask_chatbot(supabase_client, user_query, SUPABASE_CHUNK_TABLE))
     
     return jsonify(response_data)
+
 
 # --- Server Startup Logic ---
 def start_async_listener(loop):
@@ -475,4 +482,7 @@ if __name__ == '__main__':
         listener_thread = threading.Thread(target=start_async_listener, args=(listener_loop,), daemon=True)
         listener_thread.start()
         
-        # This line is for local
+        # This line is for local development only and should be commented out or removed for production.
+        # It's now handled by Gunicorn.
+        # print("Starting Flask app...")
+        # app.run(host='0.0.0.0', port=5000, debug=False)
