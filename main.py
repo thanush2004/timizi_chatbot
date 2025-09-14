@@ -435,7 +435,7 @@ Talisman(app) # Adds security headers
 
 @app.route('/ask_chatbot', methods=['POST'])
 async def handle_chat_request():
-    data = await request.json
+    data = request.json
     user_query = data.get('query')
     
     if not user_query:
@@ -475,7 +475,4 @@ if __name__ == '__main__':
         listener_thread = threading.Thread(target=start_async_listener, args=(listener_loop,), daemon=True)
         listener_thread.start()
         
-        # Start the Flask app using Gunicorn or another async-compatible server
-        # For development: app.run(host='0.0.0.0', port=5000, debug=False)
-        # Note: The provided code comments out `app.run` which is correct for production
-        # deployment with a server like Gunicorn. The async setup is now compatible.
+        # This line is for local
